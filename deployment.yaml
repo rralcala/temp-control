@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temp-control
+  labels:
+    app: temp-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: temp-control
+  template:
+    metadata:
+      labels:
+        app: temp-control
+    spec:
+      containers:
+      - name: temp-control
+        image: temp-control
+        imagePullPolicy: IfNotPresent
