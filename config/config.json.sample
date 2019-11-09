@@ -1,13 +1,15 @@
 {
     "mysql":{
-        "host":"192.168.0.100",
+        "host":"192.168.x.1",
         "user":"root",
-        "passwd":"passpass",
+        "passwd":"",
         "db":"temp",
-        "port": 3306
+        "port": 30306
     },
     "temp-control":{
-        "host": "192.168.0.101",
+        "host": "192.168.x.2",
         "port": 23
-    }
+    },
+    "weather": "",
+    "fan": "192.168.x.3"
 }
