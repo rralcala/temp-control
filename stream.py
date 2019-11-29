@@ -1,21 +1,20 @@
 import datetime
 import json
 import logging
-import mysql.connector
-from mysql.connector import Error
-from mysql.connector import errorcode
-from pyHS100 import SmartBulb, SmartPlug
-import pytz
 import re
-import requests
 import select
 import socket
 import time
-from threading import Timer
+
+import mysql.connector
+from mysql.connector import Error
+from mysql.connector import errorcode
+import pytz
+import requests
+
+import fan
 
 HEATING = "1"
-FAN_OFF_DELAY = 120.0
-
 
 def get_temp(api_key):
     # base_url variable to store url 
@@ -56,35 +55,23 @@ def get_temp(api_key):
         logger.error(" City Not Found ")
         return -273.15
 
-def fan_off():
-    plug = SmartPlug(FAN_IP)
-    plug.turn_off()
-
 def new_data(m, config, dt):
-    temp = m.group(1)
-    oper = m.group(2)
-    heat = m.group(3)
+    row = {}
+    row['temp'] = m.group(1)
+    row['oper'] = m.group(2)
+    row['heat'] = m.group(3)
+    row['otemp'] = get_temp(config["weather"])
+    row['date'] = dt.strftime("%Y-%m-%d %H:%M")
     
-    otemp = get_temp(config["weather"])
-    date = dt.strftime("%Y-%m-%d %H:%M")
-    save_row(config['mysql'], date, otemp, temp, oper, heat)
-    return heat
+    return row
 
 
-def handle_fan(heat):
-    if heat == HEATING:
-        SmartPlug(FAN_IP).turn_on()
-    else:
-        Timer(FAN_OFF_DELAY, fan_off).start()
-
-def poll(config):
-    prev_state = 0
-    fan_off()
+def poll(config, fan):
     data = ""        
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as temp_source:
         try:
-            s.connect((config['temp-control']['host'], config['temp-control']['port']))
-            s.setblocking(0)
+            temp_source.connect((config['temp-control']['host'], config['temp-control']['port']))
+            temp_source.setblocking(0)
         except Exception as e:
             logger.error(e)
             time.sleep(10)
@@ -93,9 +80,9 @@ def poll(config):
         
         last_min = datetime.datetime.now().minute - 1
         while True:
-            ready = select.select([s], [], [], 10.0)
+            ready = select.select([temp_source], [], [], 10.0)
             if ready[0]:
-                data += s.recv(1024).decode("utf-8")
+                data += temp_source.recv(1024).decode("utf-8")
                 if not data:
                     logger.warn("No data, breaking")
                     break
@@ -104,17 +91,17 @@ def poll(config):
                     newline = data[:pos]
                     m = re.search('([0-9]+\.[0-9]+)\s([01])\s([01])', newline)
                     dt = datetime.datetime.now(tz)
+
                     if m and last_min != dt.minute:
-                        heat = new_data(m, config, dt)
-                        if prev_state != heat:
-                            handle_fan(heat)
-                            prev_state = heat
+                        row = new_data(m, config, dt)
+                        save_row(config['mysql'], row['date'], row['otemp'], row['temp'], row['oper'], row['heat'])
+                        fan.should_be(row['heat'])
                         last_min = dt.minute
                         data = ""
                     data = data[pos+2:]
             else:
                 break
-        s.close()
+        temp_source.close()
         time.sleep(10)
 
 
@@ -148,11 +135,16 @@ if __name__ == "__main__":
 
     with open("config/config.json") as conf_file:
         config = json.load(conf_file)
-    FAN_IP = config["fan"]
+
     tz = pytz.timezone("US/Pacific")
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
     
     logger = logging.getLogger()
-
+    
+    fan = fan.Fan(config["fan"], logger)
     while True:
-        poll(config)
+        poll(config, fan)
