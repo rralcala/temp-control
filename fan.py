@@ -3,7 +3,7 @@ from pyHS100 import SmartBulb, SmartPlug
 from threading import Timer
 
 class Fan:
-    FAN_OFF_DELAY = 300.0
+    FAN_OFF_DELAY = 400.0
 
     def __init__(self, fan_ip, logger):
         self.state = True
@@ -28,4 +28,4 @@ class Fan:
         if heat == "0" and self.state == True and self.changing == False:
             self.logger.info("Turning fan off")
             self.changing = True
-            Timer(self.FAN_OFF_DELAY, fan_off).start()
+            Timer(self.FAN_OFF_DELAY, self.fan_off).start()
