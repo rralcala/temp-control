@@ -130,6 +130,7 @@ def save_row(config, date, otemp, temp, oper, heat):
         if (connection and connection.is_connected()):
             connection.close()
 
+
 if __name__ == "__main__":
     config = None
 
@@ -144,7 +145,6 @@ if __name__ == "__main__":
     )
     
     logger = logging.getLogger()
-    
     fan = fan.Fan(config["fan"], logger)
     while True:
         poll(config, fan)
