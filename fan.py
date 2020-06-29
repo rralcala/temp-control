@@ -17,24 +17,25 @@ class Fan:
 
     def fan_off(self):
         try:
-            if self.plug.is_on:
-                self.plug.turn_off()
+            self.plug.turn_off()
+            self.logger.info("Turned fan off")
         except Exception:
             self.logger.warning("Outlet is down")
-        self.logger.info("Turned fan off")
         self.changing = False
 
     def should_be(self, heat):
         if heat == HEAT_ON:
-            self.logger.info("Turned fan on")
             try:
                 if self.plug.is_off:
                     self.plug.turn_on()
+                    self.logger.info("Turned fan on")
             except Exception:
                 self.logger.warning("Outlet is down")
-            self.logger.info("Turned fan off")
             self.state = True
-        if heat == HEAT_OFF and self.changing is False:
-            self.logger.info("Turning fan off")
-            self.changing = True
-            Timer(self.FAN_OFF_DELAY, self.fan_off).start()
+        try:
+            if heat == HEAT_OFF and self.plug.is_on and self.changing is False:
+                self.logger.info("Turning fan off")
+                self.changing = True
+                Timer(self.FAN_OFF_DELAY, self.fan_off).start()
+        except Exception:
+            self.logger.warning("Outlet is down")

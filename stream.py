@@ -93,9 +93,10 @@ class TempControl:
 
             insert_query = f'INSERT INTO temp  VALUES ("{date}", "{otemp}", "{temp}", {oper}, {heat}) '
 
-            with connection.cursor() as cursor:
-                cursor.execute(insert_query)
-                connection.commit()
+            cursor = connection.cursor()
+            cursor.execute(insert_query)
+            connection.commit()
+            cursor.close()
 
             self.logger.info(f'("{date}", "{otemp}", "{temp}", {oper}, {heat})')
         except mysql.connector.Error as error:
